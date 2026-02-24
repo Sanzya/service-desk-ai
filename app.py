@@ -2,123 +2,158 @@ import streamlit as st
 import os
 from openai import OpenAI
 
+# ---- Page Config ----
+st.set_page_config(page_title="Service Desk AI Portal", page_icon="🤖", layout="wide")
+
+# ---- OpenAI Client ----
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-import bcrypt
-
-USERS = {
-    "sanya": b"$2b$12$91uKzS6ffJY.iXly/6c.xOUMZYpceqBZ21yhPnN3s6wKKjD3jCMIi",
-    
+# ---- Styles ----
+st.markdown("""
+<style>
+.hero {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: white;
+    padding: 32px;
+    border-radius: 20px;
+    margin-bottom: 24px;
 }
+.card {
+    background: #f7f9fc;
+    padding: 20px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    transition: transform .2s ease;
+}
+.card:hover {
+    transform: translateY(-4px);
+}
+.issue-btn {
+    margin: 6px 0;
+}
+</style>
+""", unsafe_allow_html=True)
 
-def authenticate(username, password):
-    if username in USERS:
-        return bcrypt.checkpw(password.encode("utf-8"), USERS[username])
-    return False
-
-
-
-
-
-
-
-
+# ---- GPT Helper ----
 def ask_gpt(question, category):
     system_prompt = f"""
 You are an enterprise IT Service Desk assistant.
 Provide clear, concise, step-by-step troubleshooting guidance for {category} issues.
-Avoid sensitive data. Be professional.
+Avoid sensitive data. Be professional and helpful.
 """
 
-    response = client.chat.completions.create(
+    response = client.responses.create(
         model="gpt-4.1-mini",
-        messages=[
+        input=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": question}
-        ]
+            {"role": "user", "content": question},
+        ],
     )
 
-    return response.choices[0].message.content
+    return response.output_text
 
+# ---- Hero ----
+st.markdown("""
+<div class="hero">
+    <h1>🤖 Service Desk AI Portal</h1>
+    <p>Self-service IT support for common workplace issues.</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.set_page_config(page_title="Service Desk AI Bot", layout="wide")
+# ---- Categories ----
+categories = {
+    "🌐 Internet / VPN": [
+        "VPN is connected but I have no internet",
+        "I cannot connect to VPN from home",
+        "VPN keeps disconnecting",
+        "Internal websites are not loading",
+        "Slow internet when connected to VPN",
+        "VPN client fails to start",
+        "VPN shows connected but apps don’t work",
+        "VPN authentication failed",
+        "VPN takes too long to connect",
+        "VPN blocked by firewall",
+        "Proxy issues while on VPN",
+        "DNS not resolving on VPN",
+        "VPN drops on Wi-Fi",
+        "VPN not working after update",
+        "VPN app crashes"
+    ],
+    "🧩 Software Issues": [
+        "Outlook is not syncing emails",
+        "Teams microphone is not working",
+        "Application crashes on startup",
+        "I cannot install approved software",
+        "Software update failed",
+        "License expired error message",
+        "Excel is freezing",
+        "App not responding",
+        "Printer driver not working",
+        "Software not opening",
+        "Missing DLL error",
+        "App needs admin rights",
+        "Corrupted installation",
+        "Software compatibility issue",
+        "Error code during launch"
+    ],
+    "🔐 Access / Password": [
+        "I forgot my corporate password",
+        "My account is locked",
+        "Request access to shared drive",
+        "I cannot access an internal system",
+        "MFA is not working",
+        "Permission denied error",
+        "SSO login failed",
+        "Expired password message",
+        "Account disabled",
+        "Access revoked by admin",
+        "Unable to reset password",
+        "New user access request",
+        "Role missing permissions",
+        "VPN access denied",
+        "Cannot login after reset"
+    ],
+}
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = None
+st.markdown("## ⚡ Choose a category")
 
-# -------- LOGIN --------
-if not st.session_state.logged_in:
-    st.title("🔐 Corporate Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+c1, c2, c3 = st.columns(3)
 
-    if st.button("Login"):
-        if authenticate(username, password):
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.rerun()
-        else:
-            st.error("Invalid credentials")
-
-# -------- MAIN APP --------
-else:
-    st.sidebar.markdown(f"👤 Logged in as: {st.session_state.username}")
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.username = None
-        st.rerun()
-
-    st.title("🤖 Service Desk AI Bot")
-    st.write("Choose a category to see common questions:")
-
-    categories = {
-        "🌐 Internet / VPN": [
-            "VPN is connected but I have no internet",
-            "I cannot connect to VPN from home",
-            "VPN keeps disconnecting",
-            "Internal websites are not loading",
-            "Slow internet when connected to VPN",
-            "VPN client fails to start"
-        ],
-        "🧩 Software Issues": [
-            "Outlook is not syncing emails",
-            "Teams microphone is not working",
-            "Application crashes on startup",
-            "I cannot install approved software",
-            "Software update failed",
-            "License expired error message"
-        ],
-        "🔐 Access / Password": [
-            "I forgot my corporate password",
-            "My account is locked",
-            "Request access to shared drive",
-            "I cannot access an internal system",
-            "MFA is not working",
-            "Permission denied error"
-        ]
-    }
-
-    # Category buttons
-    cols = st.columns(3)
-    for col, cat in zip(cols, categories.keys()):
-        if col.button(cat):
+for col, cat in zip([c1, c2, c3], categories.keys()):
+    with col:
+        if st.button(cat, use_container_width=True):
             st.session_state["selected_category"] = cat
             st.session_state["selected_question"] = None
 
-    # Show questions for selected category
-    if "selected_category" in st.session_state:
-        st.subheader(f"Questions for {st.session_state['selected_category']}")
-        for q in categories[st.session_state["selected_category"]]:
-            if st.button(q):
+# ---- Issues in 3 Columns ----
+if "selected_category" in st.session_state:
+    st.divider()
+    st.subheader(f"Issues: {st.session_state['selected_category']}")
+
+    issues = categories[st.session_state["selected_category"]]
+
+    col1, col2, col3 = st.columns(3)
+
+    for i, q in enumerate(issues):
+        target_col = [col1, col2, col3][i % 3]
+        with target_col:
+            if st.button(q, key=q):
                 st.session_state["selected_question"] = q
 
-    # Show GPT answer
-    if "selected_question" in st.session_state and st.session_state["selected_question"]:
-        st.markdown("### 🤖 Answer")
-        with st.spinner("Thinking..."):
-            answer = ask_gpt(
-                st.session_state["selected_question"],
-                st.session_state["selected_category"]
-            )
-        st.success(answer)
+
+
+# ---- AI Answer ----
+if st.session_state.get("selected_question"):
+    st.divider()
+    st.markdown("### 🤖 Recommended Fix")
+    with st.spinner("Generating step-by-step solution..."):
+        answer = ask_gpt(
+            st.session_state["selected_question"],
+            st.session_state["selected_category"]
+        )
+    st.success(answer)
+
+# ---- Footer ----
+st.markdown("---")
+st.caption("Enterprise Service Desk • AI-powered troubleshooting")
