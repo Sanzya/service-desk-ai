@@ -154,6 +154,26 @@ if st.session_state.get("selected_question"):
         )
     st.success(answer)
 
+if st.session_state.get("selected_question"):
+
+    # ---- Follow-up Question ----
+    st.markdown("### 💬 Still not resolved? Ask more details")
+
+    follow_up = st.text_input("Describe your issue further:")
+
+    if st.button("Submit follow-up"):
+        if follow_up.strip() == "":
+            st.warning("Please enter more details.")
+        else:
+            with st.spinner("Analyzing your issue..."):
+                answer = ask_gpt(
+                    follow_up,
+                    st.session_state.get("selected_category", "General IT Issue")
+                )
+            st.markdown("### 🤖 Additional Help")
+            st.write(answer)
+
+
 # ---- Footer ----
 st.markdown("---")
 st.caption("Enterprise Service Desk • AI-powered troubleshooting")
