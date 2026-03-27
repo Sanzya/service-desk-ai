@@ -145,6 +145,28 @@ if "selected_category" in st.session_state:
 
 # ---- AI Answer ----
 if st.session_state.get("selected_question"):
+
+# ---- Manual Issue Search (If not listed above) ----
+st.divider()
+st.markdown("### 🔍 Didn’t find your issue?")
+
+manual_issue = st.text_input(
+    "Enter specific issue details (error message, system name, when it occurs, etc.)"
+)
+
+if st.button("Analyze My Issue"):
+    if manual_issue.strip() == "":
+        st.warning("Please enter issue details.")
+    else:
+        with st.spinner("Analyzing your issue..."):
+            answer = ask_gpt(
+                manual_issue,
+                "User provided issue (not listed)"
+            )
+            st.success(answer)
+
+
+    
     st.divider()
     st.markdown("### 🤖 Recommended Fix")
     with st.spinner("Generating step-by-step solution..."):
@@ -156,4 +178,4 @@ if st.session_state.get("selected_question"):
 
 # ---- Footer ----
 st.markdown("---")
-st.caption("Enterprise Service Desk • AI-powered troubleshooting")
+st.caption("Syeda Enterprise Service Desk • AI-powered troubleshooting")
