@@ -1,12 +1,22 @@
 import streamlit as st
 import os
 from openai import OpenAI
+from dotenv import load_dotenv
+
+# ---- Load env (local only) ----
+load_dotenv()
 
 # ---- Page Config ----
 st.set_page_config(page_title="Service Desk AI Portal", page_icon="🤖", layout="wide")
 
 # ---- OpenAI Client ----
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+
+if not api_key:
+    st.error("🚨 OpenAI API key not found. Set it in .env or Streamlit secrets.")
+    st.stop()
+
+client = OpenAI(api_key=api_key)
 
 # ---- Styles ----
 st.markdown("""
@@ -18,29 +28,38 @@ st.markdown("""
     border-radius: 20px;
     margin-bottom: 24px;
 }
-.card {
-    background: #f7f9fc;
-    padding: 20px;
-    border-radius: 16px;
-    text-align: center;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-    transition: transform .2s ease;
-}
-.card:hover {
-    transform: translateY(-4px);
-}
-.issue-btn {
-    margin: 6px 0;
-}
 </style>
 """, unsafe_allow_html=True)
 
 # ---- GPT Helper ----
-def ask_gpt(question, category):
-    system_prompt = f"""
+def ask_gpt(question):
+
+    system_prompt = """
 You are an enterprise IT Service Desk assistant.
-Provide clear, concise, step-by-step troubleshooting guidance for {category} issues.
-Avoid sensitive data. Be professional and helpful.
+
+Analyze the issue and respond in this STRICT format:
+
+1. Issue Category:
+2. Department:
+3. Step-by-Step Solution:
+- Step 1:
+  - Sub-step
+- Step 2:
+- Step 3:
+
+4. Escalation:
+If unresolved, escalate to:
+Note:
+
+Departments:
+MOH_support (Main)
+MT_support
+NEFRMCAF_support
+CHASMHL_support
+CIDC_support
+FSAE_support
+HSMS_Alerts
+MediClaims_Alerts
 """
 
     response = client.responses.create(
@@ -51,108 +70,94 @@ Avoid sensitive data. Be professional and helpful.
         ],
     )
 
-    return response.output_text
+    return response.output[0].content[0].text
+
 
 # ---- Hero ----
 st.markdown("""
 <div class="hero">
     <h1>🤖 Service Desk AI Portal</h1>
-    <p>Self-service IT support for common workplace issues.</p>
+    <p>Paste email or describe your issue for AI-powered support.</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ---- Categories ----
-categories = {
-    "🌐 Internet / VPN": [
-        "VPN is connected but I have no internet",
-        "I cannot connect to VPN from home",
-        "VPN keeps disconnecting",
-        "Internal websites are not loading",
-        "Slow internet when connected to VPN",
-        "VPN client fails to start",
-        "VPN shows connected but apps don’t work",
-        "VPN authentication failed",
-        "VPN takes too long to connect",
-        "VPN blocked by firewall",
-        "Proxy issues while on VPN",
-        "DNS not resolving on VPN",
-        "VPN drops on Wi-Fi",
-        "VPN not working after update",
-        "VPN app crashes"
-    ],
-    "🧩 Software Issues": [
-        "Outlook is not syncing emails",
-        "Teams microphone is not working",
-        "Application crashes on startup",
-        "I cannot install approved software",
-        "Software update failed",
-        "License expired error message",
-        "Excel is freezing",
-        "App not responding",
-        "Printer driver not working",
-        "Software not opening",
-        "Missing DLL error",
-        "App needs admin rights",
-        "Corrupted installation",
-        "Software compatibility issue",
-        "Error code during launch"
-    ],
-    "🔐 Access / Password": [
-        "I forgot my corporate password",
-        "My account is locked",
-        "Request access to shared drive",
-        "I cannot access an internal system",
-        "MFA is not working",
-        "Permission denied error",
-        "SSO login failed",
-        "Expired password message",
-        "Account disabled",
-        "Access revoked by admin",
-        "Unable to reset password",
-        "New user access request",
-        "Role missing permissions",
-        "VPN access denied",
-        "Cannot login after reset"
-    ],
-}
 
-st.markdown("## ⚡ Choose a category")
+# ===============================
+# 📧 EMAIL INPUT SECTION (NEW)
+# ===============================
+st.markdown("## 📧 Paste Email / Issue")
 
-c1, c2, c3 = st.columns(3)
+email_input = st.text_area(
+    "Paste email content or describe issue:",
+    height=200
+)
 
-for col, cat in zip([c1, c2, c3], categories.keys()):
-    with col:
-        if st.button(cat, use_container_width=True):
-            st.session_state["selected_category"] = cat
-            st.session_state["selected_question"] = None
+if st.button("Analyze Issue"):
+    if email_input.strip() == "":
+        st.warning("Please enter issue details.")
+    else:
+        with st.spinner("Analyzing issue..."):
+            result = ask_gpt(email_input)
 
-# ---- Issues in 3 Columns ----
-if "selected_category" in st.session_state:
+        st.markdown("## 🛠️ Solution")
+        st.write(result)
+
+        st.session_state["last_issue"] = email_input
+
+
+# ===============================
+# ⚡ QUICK ISSUE BUTTONS (OPTIONAL)
+# ===============================
+st.divider()
+st.markdown("## ⚡ Quick Issues")
+
+quick_issues = [
+    "VPN not connecting",
+    "Outlook not syncing",
+    "Account locked",
+    "Teams microphone not working"
+]
+
+cols = st.columns(4)
+
+for col, issue in zip(cols, quick_issues):
+    if col.button(issue):
+        with st.spinner("Analyzing..."):
+            result = ask_gpt(issue)
+
+        st.markdown("## 🛠️ Solution")
+        st.write(result)
+
+        st.session_state["last_issue"] = issue
+
+
+# ===============================
+# 💬 FOLLOW-UP SECTION
+# ===============================
+if "last_issue" in st.session_state:
+
     st.divider()
-    st.subheader(f"Issues: {st.session_state['selected_category']}")
+    st.markdown("### 💬 Still not resolved? Ask more details")
 
-    issues = categories[st.session_state["selected_category"]]
+    follow_up = st.text_input("Describe your issue further:")
 
-    col1, col2, col3 = st.columns(3)
+    if st.button("Submit follow-up"):
+        if follow_up.strip() == "":
+            st.warning("Please enter more details.")
+        else:
+            combined_query = f"""
+Original issue:
+{st.session_state["last_issue"]}
 
-    for i, q in enumerate(issues):
-        target_col = [col1, col2, col3][i % 3]
-        with target_col:
-            if st.button(q, key=q):
-                st.session_state["selected_question"] = q
+Follow-up:
+{follow_up}
+"""
+            with st.spinner("Analyzing further..."):
+                answer = ask_gpt(combined_query)
 
+            st.markdown("### 🤖 Additional Help")
+            st.write(answer)
 
-
-# ---- AI Answer ----
-if st.session_state.get("selected_question"):
-    st.divider()
-    st.markdown("### 🤖 Recommended Fix")
-    with st.spinner("Generating step-by-step solution..."):
-        answer = ask_gpt(
-            st.session_state["selected_question"],
-            st.session_state["selected_category"]
-        )
-    st.success(answer)
 
 # ---- Footer ----
 st.markdown("---")
