@@ -2,3 +2,7 @@ streamlit
 openai
 python-dotenv
 bcrypt
+msal
+requests
+pandas
+``
