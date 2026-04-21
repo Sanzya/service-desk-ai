@@ -88,8 +88,15 @@ st.markdown("""
 st.markdown("## 📧 Paste Email / Issue")
 
 email_input = st.text_area(
-    "Paste email content or describe issue:",
+    "Paste email content or describe issue (you can also upload screenshot below):",
     height=200
+)
+
+# 🆕 Add image in SAME section (acts like paste)
+image_file = st.file_uploader(
+    "📎 Paste/Upload screenshot of issue (optional)",
+    type=["png", "jpg", "jpeg"],
+    label_visibility="collapsed"
 )
 
 if st.button("Analyze Issue"):
